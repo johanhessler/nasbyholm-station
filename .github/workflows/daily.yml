@@ -53,7 +53,7 @@ jobs:
           api_key = "${TRAFIKVERKET_API_KEY}"
 
           [destination.ducklake.credentials]
-          catalog = "trains_catalog.ducklake"
+          catalog = "duckdb:///trains_catalog.ducklake"
 
           [destination.ducklake.credentials.storage.credentials]
           azure_storage_account_name = "nasbyholmstation"
