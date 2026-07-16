@@ -29,6 +29,10 @@ permissions:
 env:
   AZURE_STORAGE_ACCOUNT_KEY: ${{ secrets.AZURE_STORAGE_ACCOUNT_KEY }}
   TRAFIKVERKET_API_KEY: ${{ secrets.TRAFIKVERKET_API_KEY }}
+  # duckdb-azure hittar inte CA-certet default → peka på systemets bundle (ubuntu).
+  SSL_CERT_FILE: /etc/ssl/certs/ca-certificates.crt
+  SSL_CERT_DIR: /etc/ssl/certs
+  CURL_CA_BUNDLE: /etc/ssl/certs/ca-certificates.crt
 
 jobs:
   build:
