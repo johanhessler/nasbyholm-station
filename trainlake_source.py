@@ -19,19 +19,9 @@ TZ = ZoneInfo("Europe/Stockholm")
 # Verifierade stationssignaturer (mot TrainStation-API:t)
 STATIONS = ["Sea", "Srp", "Lmm"]  # Svedala, Skurup, Lemmeströ
 
-# Fält vi hämtar (INCLUDE i queryn)
-_INCLUDES = [
-    "ActivityType",
-    "AdvertisedTrainIdent",
-    "LocationSignature",
-    "AdvertisedTimeAtLocation",
-    "EstimatedTimeAtLocation",
-    "TimeAtLocation",
-    "ToLocation",
-    "FromLocation",
-    "TrackAtLocation",
-    "Canceled",
-]
+# Vi utelämnar INCLUDE medvetet → API:t returnerar ALLA fält för
+# TrainAnnouncement (EL-troget). dlt normaliserar array-fälten till barntabeller;
+# vi formar det vi behöver i dbt. Merge-nyckeln nedan finns alltid med.
 
 
 def _day_window() -> tuple[str, str]:
@@ -47,11 +37,11 @@ def _day_window() -> tuple[str, str]:
 
 
 def _build_query(api_key: str) -> str:
-    """Bygg XML-request-bodyn med absoluta dygnsgränser (svensk tid)."""
+    """Bygg XML-request-bodyn med absoluta dygnsgränser (svensk tid). Ingen
+    INCLUDE → alla fält returneras."""
     stations = "\n          ".join(
         f'<EQ name="LocationSignature" value="{s}" />' for s in STATIONS
     )
-    includes = "\n    ".join(f"<INCLUDE>{f}</INCLUDE>" for f in _INCLUDES)
     start, end = _day_window()
     return f"""<REQUEST>
   <LOGIN authenticationkey="{api_key}" />
@@ -65,7 +55,6 @@ def _build_query(api_key: str) -> str:
         <LT name="AdvertisedTimeAtLocation" value="{end}" />
       </AND>
     </FILTER>
-    {includes}
   </QUERY>
 </REQUEST>"""
 
