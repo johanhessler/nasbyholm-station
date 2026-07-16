@@ -7,5 +7,8 @@ dlt[duckdb,az,parquet]==1.29.0
 requests==2.34.2
 duckdb==1.5.4
 
+# Katalog-persistens mot Azure Blob (blob_catalog.py) — GHA-cron
+azure-storage-blob==12.30.0
+
 # Transformation
 dbt-duckdb==1.10.1

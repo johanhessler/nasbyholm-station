@@ -1,0 +1,130 @@
+name: Daglig tåghämtning + dashboard
+
+# Bygger historik FRAMÅT: API:t behåller bara ~3 dygn, så vi fångar varje dygn
+# medan det ligger i fönstret och låter DuckLake-merge ackumulera. Kör 2×/dygn
+# för marginal mot 3-dygnsgränsen. DuckLake-katalogen speglas i Azure Blob
+# (blob_catalog.py) mellan efemära runs — cronen är enda skrivaren.
+
+on:
+  schedule:
+    - cron: "0 4 * * *"    # 06:00 svensk sommartid
+    - cron: "0 16 * * *"   # 18:00 svensk sommartid
+  workflow_dispatch:
+    inputs:
+      days_back:
+        description: "Catch-up: hämta N dygn bakåt (max ~2 pga retention). Tomt = default-fönster."
+        required: false
+        default: ""
+
+# Ingen samtidig körning → katalogen skrivs aldrig av två runs samtidigt.
+concurrency:
+  group: trainlake-daily
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+env:
+  AZURE_STORAGE_ACCOUNT_KEY: ${{ secrets.AZURE_STORAGE_ACCOUNT_KEY }}
+  TRAFIKVERKET_API_KEY: ${{ secrets.TRAFIKVERKET_API_KEY }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Installera Python-beroenden
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Skriv secrets.toml + profiles.yml från GitHub Secrets
+        run: |
+          mkdir -p .dlt
+          cat > .dlt/secrets.toml <<EOF
+          [sources.trainlake_source]
+          api_key = "${TRAFIKVERKET_API_KEY}"
+
+          [destination.ducklake.credentials]
+          catalog = "trains_catalog.ducklake"
+
+          [destination.ducklake.credentials.storage.credentials]
+          azure_storage_account_name = "nasbyholmstation"
+          azure_storage_account_key = "${AZURE_STORAGE_ACCOUNT_KEY}"
+          EOF
+          cat > profiles.yml <<EOF
+          nasbyholm_station:
+            target: dev
+            outputs:
+              dev:
+                type: duckdb
+                path: ":memory:"
+                schema: main
+                extensions: [ducklake, azure]
+                secrets:
+                  - type: azure
+                    scope: "az://trainlake/"
+                    connection_string: "AccountName=nasbyholmstation;AccountKey=${AZURE_STORAGE_ACCOUNT_KEY}"
+                attach:
+                  - path: "ducklake:trains_catalog.ducklake"
+                    alias: trainlake
+          EOF
+
+      - name: Hämta katalog från blob
+        run: python blob_catalog.py download
+
+      - name: Hämta tågdata (dlt -> DuckLake)
+        run: |
+          if [ -n "${{ inputs.days_back }}" ]; then
+            python run_pipeline.py --days-back ${{ inputs.days_back }}
+          else
+            python run_pipeline.py
+          fi
+
+      - name: Bygg dbt-lager
+        run: dbt build --profiles-dir .
+
+      - name: Spara katalog till blob
+        run: python blob_catalog.py upload
+
+      - name: Publicera till reports/trains.duckdb
+        run: python publish_reports.py
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Bygg Evidence-dashboard
+        working-directory: dashboard
+        run: |
+          # Subpath-deploy: Pages serverar under /nasbyholm-station.
+          # Sätts bara i CI så lokal `npm run dev` förblir på "/".
+          printf '\ndeployment:\n  basePath: /nasbyholm-station\n' >> evidence.config.yaml
+          npm ci
+          npm run sources
+          npm run build
+
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dashboard/build
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

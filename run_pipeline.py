@@ -14,10 +14,12 @@ Destinationen (ducklake-katalog + Azure Blob) konfigureras via .dlt/config.toml
 och .dlt/secrets.toml.
 """
 import argparse
+import sys
 
 import dlt
 
-import dlt_win_patch  # noqa: F401  — måste importeras före pipeline.run() (se modulen)
+if sys.platform == "win32":
+    import dlt_win_patch  # noqa: F401  — måste importeras före pipeline.run() (endast Windows)
 from trainlake_source import (
     train_announcements,
     train_stations,
