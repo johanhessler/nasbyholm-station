@@ -27,7 +27,27 @@ models:
           - accepted_values:
               arguments:
                 values: ['Mot Ystad/Simrishamn', 'Mot Malmö/Helsingborg']
+      - name: train_type
+        description: "Härlett tågslag (från dim_trains); gäller även Lemmeströ via tågnr+dag."
       - name: advertised_time
         description: "Tidtabellstid (AdvertisedTimeAtLocation)."
+        tests:
+          - not_null
+
+  - name: dim_trains
+    description: "Ett tåg per driftdag med härlett tågslag (Pågatåg/Öresundståg/Godståg/…)."
+    columns:
+      - name: train_ident
+        tests:
+          - not_null
+      - name: train_type
+        description: "Härlett tågslag."
+        tests:
+          - not_null
+
+  - name: agg_passages_daily
+    description: "Passager per driftdag, station, riktning och tågslag: antal tåg, inställda, snittförsening, andel i tid."
+    columns:
+      - name: operating_day
         tests:
           - not_null
