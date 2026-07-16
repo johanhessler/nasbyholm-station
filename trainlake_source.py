@@ -5,7 +5,7 @@ och verifiera att API-anropet ger rätt data — INNAN destinationen kopplas på
 """
 from __future__ import annotations
 
-from datetime import datetime, time, timedelta
+from datetime import date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 import dlt
@@ -36,13 +36,30 @@ def _day_window() -> tuple[str, str]:
     return start.isoformat(timespec="seconds"), end.isoformat(timespec="seconds")
 
 
-def _build_query(api_key: str) -> str:
+def window_from_dates(from_date: str, to_date: str) -> tuple[str, str]:
+    """[from 00:00, to+1 00:00) — 'to' inklusivt som helt dygn (svensk tid).
+
+    OBS: API:t behåller bara ~3 dygn (idag + 2 bakåt); äldre datum ger tomt.
+    """
+    start = datetime.combine(date.fromisoformat(from_date), time.min, TZ)
+    end = datetime.combine(date.fromisoformat(to_date) + timedelta(days=1), time.min, TZ)
+    return start.isoformat(timespec="seconds"), end.isoformat(timespec="seconds")
+
+
+def window_days_back(days: int) -> tuple[str, str]:
+    """[(idag - days) 00:00, imorgon 24:00) — catch-up N dygn bakåt + framåtmarginal."""
+    today = datetime.now(TZ).date()
+    start = datetime.combine(today - timedelta(days=days), time.min, TZ)
+    end = datetime.combine(today + timedelta(days=2), time.min, TZ)
+    return start.isoformat(timespec="seconds"), end.isoformat(timespec="seconds")
+
+
+def _build_query(api_key: str, start: str, end: str) -> str:
     """Bygg XML-request-bodyn med absoluta dygnsgränser (svensk tid). Ingen
     INCLUDE → alla fält returneras."""
     stations = "\n          ".join(
         f'<EQ name="LocationSignature" value="{s}" />' for s in STATIONS
     )
-    start, end = _day_window()
     return f"""<REQUEST>
   <LOGIN authenticationkey="{api_key}" />
   <QUERY objecttype="TrainAnnouncement" schemaversion="1.9" orderby="AdvertisedTimeAtLocation">
@@ -81,10 +98,16 @@ def _post(body: str) -> dict:
         "advertised_time_at_location",
     ],
 )
-def train_announcements(api_key: str = dlt.secrets.value):
+def train_announcements(
+    api_key: str = dlt.secrets.value,
+    start: str | None = None,
+    end: str | None = None,
+):
     """Yield:ar en post per tågannonsering. dlt normaliserar From/To-arrayerna
-    till barntabeller automatiskt."""
-    result = _post(_build_query(api_key))
+    till barntabeller automatiskt. Utan start/end används default-dygnsfönstret."""
+    if start is None or end is None:
+        start, end = _day_window()
+    result = _post(_build_query(api_key, start, end))
     yield from result.get("TrainAnnouncement", [])
 
 
