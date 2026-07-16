@@ -5,10 +5,16 @@ och verifiera att API-anropet ger rätt data — INNAN destinationen kopplas på
 """
 from __future__ import annotations
 
+from datetime import datetime, time, timedelta
+from zoneinfo import ZoneInfo
+
 import dlt
 import requests
 
 TRAFIKVERKET_URL = "https://api.trafikinfo.trafikverket.se/v2/data.json"
+
+# All tidtabell rapporteras i svensk tid; vi räknar dygnsgränser DST-korrekt.
+TZ = ZoneInfo("Europe/Stockholm")
 
 # Verifierade stationssignaturer (mot TrainStation-API:t)
 STATIONS = ["Sea", "Srp", "Lmm"]  # Svedala, Skurup, Lemmeströ
@@ -28,12 +34,25 @@ _INCLUDES = [
 ]
 
 
+def _day_window() -> tuple[str, str]:
+    """Absoluta dygnsgränser: igår 00:00 → imorgon 24:00 (3 kalenderdygn).
+
+    Halvöppet intervall [start, end). Brett + överlappande så en missad
+    körning läker sig själv; merge-nyckeln dedupar överlappet.
+    """
+    today = datetime.now(TZ).date()
+    start = datetime.combine(today - timedelta(days=1), time.min, TZ)  # igår 00:00
+    end = datetime.combine(today + timedelta(days=2), time.min, TZ)    # imorgon 24:00
+    return start.isoformat(timespec="seconds"), end.isoformat(timespec="seconds")
+
+
 def _build_query(api_key: str) -> str:
-    """Bygg XML-request-bodyn. Fönster: -1h till +6h."""
+    """Bygg XML-request-bodyn med absoluta dygnsgränser (svensk tid)."""
     stations = "\n          ".join(
         f'<EQ name="LocationSignature" value="{s}" />' for s in STATIONS
     )
     includes = "\n    ".join(f"<INCLUDE>{f}</INCLUDE>" for f in _INCLUDES)
+    start, end = _day_window()
     return f"""<REQUEST>
   <LOGIN authenticationkey="{api_key}" />
   <QUERY objecttype="TrainAnnouncement" schemaversion="1.9" orderby="AdvertisedTimeAtLocation">
@@ -42,8 +61,8 @@ def _build_query(api_key: str) -> str:
         <OR>
           {stations}
         </OR>
-        <GT name="AdvertisedTimeAtLocation" value="$dateadd(-01:00:00)" />
-        <LT name="AdvertisedTimeAtLocation" value="$dateadd(06:00:00)" />
+        <GTE name="AdvertisedTimeAtLocation" value="{start}" />
+        <LT name="AdvertisedTimeAtLocation" value="{end}" />
       </AND>
     </FILTER>
     {includes}
