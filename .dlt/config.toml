@@ -1,11 +1,5 @@
 # Icke-hemlig konfiguration (får committas).
 
-[destination.ducklake]
-# Katalogen skapades manuellt med data_path abfs://. dlt:s secret-byggare stödjer
-# bara az://abfss:// — så vi använder az:// och skriver om data_path med override.
-# (az:// och abfs:// pekar på samma blobar.)
-override_data_path = true
-
 [destination.ducklake.credentials]
 # Samma DuckLake som sattes upp manuellt: attach-alias "trainlake".
 # (catalog ligger i secrets.toml — dlt behandlar den som hemlig.)

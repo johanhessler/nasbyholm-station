@@ -1,0 +1,11 @@
+# Direkta beroenden. Installera i venv:
+#   python -m venv .venv
+#   ./.venv/Scripts/python.exe -m pip install -r requirements.txt
+#
+# dlt-extras: duckdb (destination), az (Azure Blob), parquet (pyarrow för DuckLake)
+dlt[duckdb,az,parquet]==1.29.0
+requests==2.34.2
+duckdb==1.5.4
+
+# Transformation
+dbt-duckdb==1.10.1

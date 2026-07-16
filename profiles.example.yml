@@ -1,0 +1,19 @@
+# Mall för profiles.yml. Kopiera till profiles.yml (gitignorad) och fyll i
+# din Azure connection string. Kör dbt med:  dbt run --profiles-dir .
+nasbyholm_station:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: ":memory:"          # arbets-db; all data ligger i DuckLake (Azure)
+      schema: main              # fallback; scheman styrs av +schema i dbt_project.yml
+      extensions:
+        - ducklake
+        - azure
+      secrets:
+        - type: azure
+          scope: "az://trainlake/"
+          connection_string: "AccountName=DITT_KONTO;AccountKey=DIN_NYCKEL"
+      attach:
+        - path: "ducklake:trains_catalog.ducklake"
+          alias: trainlake

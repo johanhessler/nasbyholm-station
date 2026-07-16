@@ -1,0 +1,19 @@
+name: 'nasbyholm_station'
+version: '1.0.0'
+profile: 'nasbyholm_station'
+
+model-paths: ["models"]
+macro-paths: ["macros"]
+target-path: "target"
+clean-targets: ["target", "dbt_packages"]
+
+models:
+  nasbyholm_station:
+    # Alla modeller materialiseras i DuckLake-katalogen (trainlake).
+    +database: trainlake
+    staging:
+      +materialized: view
+      +schema: staging
+    marts:
+      +materialized: table
+      +schema: mart

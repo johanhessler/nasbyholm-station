@@ -28,6 +28,14 @@ lake/
 .dlt/pipelines/
 ~/.dlt/
 
+# --- dbt ---
+profiles.yml
+target/
+dbt_packages/
+logs/
+dbt.log
+.user.yml
+
 # --- OS / editor ---
 .DS_Store
 Thumbs.db

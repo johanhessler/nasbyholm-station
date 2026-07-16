@@ -1,0 +1,33 @@
+version: 2
+
+models:
+  - name: fct_train_passages
+    description: "En rad per tågpassage vid Svedala/Skurup/Lemmeströ, med riktning och försening."
+    columns:
+      - name: train_ident
+        description: "Annonserat tågnummer (AdvertisedTrainIdent)."
+        tests:
+          - not_null
+      - name: location_signature
+        description: "Stationssignatur där passagen registreras (Sea/Srp/Lmm)."
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Sea', 'Srp', 'Lmm']
+      - name: activity_type
+        description: "Avgang eller Ankomst."
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['Avgang', 'Ankomst']
+      - name: direction
+        description: "Härledd riktning; NULL för Lemmeströ (saknar From/To)."
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['Mot Ystad/Simrishamn', 'Mot Malmö/Helsingborg']
+      - name: advertised_time
+        description: "Tidtabellstid (AdvertisedTimeAtLocation)."
+        tests:
+          - not_null

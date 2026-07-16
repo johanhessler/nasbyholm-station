@@ -1,0 +1,11 @@
+version: 2
+
+sources:
+  - name: raw
+    description: "Rådata från dlt (Trafikverket TrainAnnouncement), i DuckLake."
+    database: trainlake
+    schema: raw
+    tables:
+      - name: train_announcements
+      - name: train_announcements__from_location
+      - name: train_announcements__to_location
