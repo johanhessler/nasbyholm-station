@@ -9,3 +9,5 @@ sources:
       - name: train_announcements
       - name: train_announcements__from_location
       - name: train_announcements__to_location
+      - name: train_stations
+        description: "Stationsdimension från TrainStation-API:t (alla i Skåne)."
