@@ -1,0 +1,4 @@
+name: trains
+type: duckdb
+options:
+  filename: ../../../reports/trains.duckdb
