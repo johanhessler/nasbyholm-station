@@ -7,6 +7,7 @@ till en lokal reports/trains.duckdb. Evidence läser bara den lokala filen —
 ingen Azure, inga secrets, ingen ducklake-attach i Node-lagret.
 """
 import pathlib
+import sys
 import tomllib
 
 import duckdb
@@ -29,8 +30,13 @@ def main() -> None:
     REPORTS_DB.parent.mkdir(exist_ok=True)
     con = duckdb.connect(str(REPORTS_DB))
     con.execute("INSTALL ducklake; LOAD ducklake; INSTALL azure; LOAD azure;")
-    # Default-transport: curl hittar inte CA-certet (Windows-certlager / GHA-runner).
-    con.execute("SET azure_transport_option_type = 'default';")
+    # Azure-TLS: Windows-curl kan inte verifiera mot certlagret → default-transport.
+    # Linux (GHA): curl-transport + systemets CA-bundle.
+    if sys.platform == "win32":
+        con.execute("SET azure_transport_option_type = 'default';")
+    else:
+        con.execute("SET azure_transport_option_type = 'curl';")
+        con.execute("SET ca_cert_file = '/etc/ssl/certs/ca-certificates.crt';")
     con.execute(
         "CREATE OR REPLACE SECRET s (TYPE AZURE, CONNECTION_STRING "
         f"'AccountName={creds['azure_storage_account_name']};"

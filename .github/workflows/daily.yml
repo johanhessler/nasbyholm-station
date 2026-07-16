@@ -29,10 +29,6 @@ permissions:
 env:
   AZURE_STORAGE_ACCOUNT_KEY: ${{ secrets.AZURE_STORAGE_ACCOUNT_KEY }}
   TRAFIKVERKET_API_KEY: ${{ secrets.TRAFIKVERKET_API_KEY }}
-  # duckdb-azure hittar inte CA-certet default → peka på systemets bundle (ubuntu).
-  SSL_CERT_FILE: /etc/ssl/certs/ca-certificates.crt
-  SSL_CERT_DIR: /etc/ssl/certs
-  CURL_CA_BUNDLE: /etc/ssl/certs/ca-certificates.crt
 
 jobs:
   build:
@@ -73,9 +69,10 @@ jobs:
                 schema: main
                 extensions: [ducklake, azure]
                 settings:
-                  # Tvinga default-transporten: duckdb-azures curl-transport hittar
-                  # inte CA-certet på GHA-runnern (samma problem som dlt_win_patch).
-                  azure_transport_option_type: default
+                  # Linux/GHA: curl-transporten respekterar ca_cert_file. Peka på
+                  # ubuntus systembundle så TLS mot blob.core.windows.net funkar.
+                  azure_transport_option_type: curl
+                  ca_cert_file: /etc/ssl/certs/ca-certificates.crt
                 secrets:
                   - type: azure
                     scope: "az://trainlake/"
