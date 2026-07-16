@@ -29,6 +29,8 @@ def main() -> None:
     REPORTS_DB.parent.mkdir(exist_ok=True)
     con = duckdb.connect(str(REPORTS_DB))
     con.execute("INSTALL ducklake; LOAD ducklake; INSTALL azure; LOAD azure;")
+    # Default-transport: curl hittar inte CA-certet (Windows-certlager / GHA-runner).
+    con.execute("SET azure_transport_option_type = 'default';")
     con.execute(
         "CREATE OR REPLACE SECRET s (TYPE AZURE, CONNECTION_STRING "
         f"'AccountName={creds['azure_storage_account_name']};"

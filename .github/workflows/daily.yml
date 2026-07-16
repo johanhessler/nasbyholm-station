@@ -68,6 +68,10 @@ jobs:
                 path: ":memory:"
                 schema: main
                 extensions: [ducklake, azure]
+                settings:
+                  # Tvinga default-transporten: duckdb-azures curl-transport hittar
+                  # inte CA-certet på GHA-runnern (samma problem som dlt_win_patch).
+                  azure_transport_option_type: default
                 secrets:
                   - type: azure
                     scope: "az://trainlake/"
