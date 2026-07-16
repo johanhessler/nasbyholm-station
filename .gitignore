@@ -1,0 +1,34 @@
+# --- Secrets (ALDRIG i git) ---
+.env
+.env.*
+.dlt/secrets.toml
+secrets.toml
+*.key
+
+# --- Python ---
+.venv/
+venv/
+__pycache__/
+*.pyc
+.python-version
+
+# --- DuckDB / DuckLake lokala kataloger ---
+*.ducklake
+*.ducklake.wal
+*.duckdb
+*.duckdb.wal
+*.db.wal
+
+# --- Data (ligger i Azure Blob, inte i git) ---
+*.parquet
+data/
+lake/
+
+# --- dlt runtime ---
+.dlt/pipelines/
+~/.dlt/
+
+# --- OS / editor ---
+.DS_Store
+Thumbs.db
+.vscode/
