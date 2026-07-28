@@ -7,6 +7,8 @@ Näsbyholm rapporterar inte i Trafikverkets data, så vi mäter på grannstation
 **Skurup** (`Srp`) — närmaste annonserade station sydost om huset. Varje tåg som
 passerar Näsbyholm passerar även Skurup.
 
+📱 <a href="board/" rel="external"><strong>Nästa tåg (mobil avgångstavla)</strong></a> — 2 h bakåt, 4 h framåt, uppdateras varje timme.
+
 ```sql days
 select distinct operating_day
 from trains.passages

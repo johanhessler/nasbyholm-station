@@ -4,6 +4,9 @@ name: Daglig tåghämtning + dashboard
 # medan det ligger i fönstret och låter DuckLake-merge ackumulera. Kör 2×/dygn
 # för marginal mot 3-dygnsgränsen. DuckLake-katalogen speglas i Azure Blob
 # (blob_catalog.py) mellan efemära runs — cronen är enda skrivaren.
+#
+# OBS: den mobila avgångstavlan (−2/+4h) uppdateras SEPARAT och timvis av
+# board.yml — den behöver inte hela historik-pipelinen.
 
 on:
   schedule:

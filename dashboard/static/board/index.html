@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f172a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Nästa tåg – Näsbyholm</title>
+<style>
+  :root {
+    --bg: #f8fafc; --card: #ffffff; --line: #e2e8f0;
+    --fg: #0f172a; --muted: #64748b; --faint: #94a3b8;
+    --accent: #2563eb; --accent-bg: #eff6ff;
+    --late: #dc2626; --late-bg: #fef2f2;
+    --warn: #d97706; --warn-bg: #fffbeb;
+    --ok: #16a34a;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f172a; --card: #1e293b; --line: #334155;
+      --fg: #f1f5f9; --muted: #94a3b8; --faint: #64748b;
+      --accent: #60a5fa; --accent-bg: #1e3a5f;
+      --late: #f87171; --late-bg: #422626;
+      --warn: #fbbf24; --warn-bg: #3f3218;
+      --ok: #4ade80;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg); color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    line-height: 1.35;
+  }
+  .wrap { max-width: 560px; margin: 0 auto; padding: 16px 14px 40px; }
+  header { margin-bottom: 14px; }
+  h1 { font-size: 1.35rem; margin: 0 0 2px; letter-spacing: -0.01em; }
+  .sub { color: var(--muted); font-size: 0.85rem; }
+  .updated { color: var(--faint); font-size: 0.78rem; margin-top: 4px; display: flex; align-items: center; gap: 6px; }
+  .stale { color: var(--warn); }
+
+  .group { margin-top: 18px; }
+  .group-head {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 0.78rem; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.05em; color: var(--muted); margin: 0 4px 8px;
+  }
+  .group-head .arrow { color: var(--accent); font-size: 1rem; }
+
+  ul { list-style: none; margin: 0; padding: 0; }
+  li.row {
+    display: grid; grid-template-columns: 62px 1fr auto; gap: 10px;
+    align-items: center; background: var(--card);
+    border: 1px solid var(--line); border-radius: 12px;
+    padding: 11px 13px; margin-bottom: 8px;
+  }
+  li.past { opacity: 0.5; }
+  li.next { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); background: var(--accent-bg); }
+
+  .time { font-variant-numeric: tabular-nums; }
+  .time .adv { font-size: 1.15rem; font-weight: 700; }
+  .time .adv.struck { text-decoration: line-through; font-weight: 500; font-size: 0.95rem; color: var(--muted); }
+  .time .new { display: block; font-size: 1.05rem; font-weight: 700; color: var(--late); font-variant-numeric: tabular-nums; }
+
+  .mid .dest { font-weight: 600; font-size: 1rem; }
+  .mid .meta { color: var(--muted); font-size: 0.8rem; margin-top: 1px; }
+
+  .right { text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
+  .rel { font-size: 0.9rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .rel.soon { color: var(--accent); }
+  .badge { font-size: 0.72rem; font-weight: 700; padding: 2px 7px; border-radius: 999px; white-space: nowrap; }
+  .badge.late { background: var(--late-bg); color: var(--late); }
+  .badge.warn { background: var(--warn-bg); color: var(--warn); }
+  .badge.cancel { background: var(--late-bg); color: var(--late); }
+
+  .empty, .error { text-align: center; color: var(--muted); padding: 40px 10px; font-size: 0.95rem; }
+  .error { color: var(--late); }
+  footer { text-align: center; color: var(--faint); font-size: 0.72rem; margin-top: 26px; }
+  footer a { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Nästa tåg <span style="color:var(--muted);font-weight:400">– Skurup</span></h1>
+    <div class="sub">Näsbyholm · Ystadbanan · 2 h bakåt, 4 h framåt</div>
+    <div class="updated" id="updated"></div>
+  </header>
+  <main id="board"><div class="empty">Laddar…</div></main>
+  <footer>Trafikverket öppna data · statisk tavla, uppdateras varje timme</footer>
+</div>
+
+<script>
+const BACK_H = 2, FWD_H = 4;
+// Datan uppdateras timvis av board.yml och publiceras på data-grenen (fristående
+// från den tunga historik-pipelinen). raw.githubusercontent är CORS-öppen.
+const DATA_URL = "https://raw.githubusercontent.com/johanhessler/nasbyholm-station/data/departures.json";
+const svTime = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Stockholm", hour: "2-digit", minute: "2-digit" });
+const hhmm = (epoch) => svTime.format(new Date(epoch * 1000));
+
+let data = null;
+
+function relLabel(sec) {
+  // sec = effective - now (seconds). Positiv = i framtiden.
+  const m = Math.round(sec / 60);
+  if (m === 0) return { txt: "nu", soon: true };
+  if (m > 0) {
+    if (m < 60) return { txt: "om " + m + " min", soon: m <= 15 };
+    const h = Math.floor(m / 60), r = m % 60;
+    return { txt: "om " + h + " h" + (r ? " " + r + " min" : ""), soon: false };
+  }
+  const am = -m;
+  if (am < 60) return { txt: am + " min sedan", soon: false };
+  const h = Math.floor(am / 60), r = am % 60;
+  return { txt: h + " h" + (r ? " " + r + " min" : "") + " sedan", soon: false };
+}
+
+function render() {
+  const board = document.getElementById("board");
+  const upd = document.getElementById("updated");
+  if (!data) return;
+
+  const now = Date.now() / 1000;
+  const lo = now - BACK_H * 3600, hi = now + FWD_H * 3600;
+
+  // Uppdaterad-stämpel + inaktuell-varning (>75 min gammalt bygge).
+  const ageMin = Math.round((now - data.generated_epoch) / 60);
+  const stale = ageMin > 75;
+  upd.innerHTML = "🕓 Uppdaterad kl " + hhmm(data.generated_epoch)
+    + (stale ? ' <span class="stale">· data kan vara inaktuell</span>' : "");
+
+  const inWin = data.departures.filter(d => d.effective_epoch >= lo && d.effective_epoch <= hi);
+  if (!inWin.length) {
+    board.innerHTML = '<div class="empty">Inga tåg de närmaste timmarna.</div>';
+    return;
+  }
+
+  const groups = [
+    { name: "Mot Ystad/Simrishamn", arrow: "→" },
+    { name: "Mot Malmö/Helsingborg", arrow: "←" },
+  ];
+
+  let html = "";
+  for (const g of groups) {
+    const rows = inWin.filter(d => d.direction === g.name)
+                      .sort((a, b) => a.effective_epoch - b.effective_epoch);
+    if (!rows.length) continue;
+
+    const nextIdx = rows.findIndex(d => d.effective_epoch >= now && !d.canceled);
+    html += '<section class="group"><div class="group-head"><span class="arrow">'
+          + g.arrow + '</span>' + g.name + "</div><ul>";
+
+    rows.forEach((d, i) => {
+      const past = d.effective_epoch < now;
+      const isNext = i === nextIdx;
+      const cls = ["row", past ? "past" : "", isNext ? "next" : ""].filter(Boolean).join(" ");
+
+      const advTxt = hhmm(d.advertised_epoch);
+      const delayed = !d.canceled && d.delay_minutes != null && d.delay_minutes >= 1;
+      const early = !d.canceled && d.delay_minutes != null && d.delay_minutes <= -1;
+
+      let timeHtml;
+      if (delayed) {
+        timeHtml = '<span class="adv struck">' + advTxt + '</span>'
+                 + '<span class="new">' + hhmm(d.effective_epoch) + "</span>";
+      } else {
+        timeHtml = '<span class="adv">' + advTxt + "</span>";
+      }
+
+      // Höger: relativ tid + badge.
+      const r = relLabel(d.effective_epoch - now);
+      let badge = "";
+      if (d.canceled) badge = '<span class="badge cancel">Inställt</span>';
+      else if (delayed) badge = '<span class="badge ' + (d.delay_minutes >= 5 ? "late" : "warn") + '">+'
+                                 + d.delay_minutes + " min</span>";
+      else if (early) badge = '<span class="badge warn">' + (-d.delay_minutes) + " min tidig</span>";
+
+      const meta = [d.train_type, d.track ? "spår " + d.track : "", "tåg " + d.train_ident]
+                     .filter(Boolean).join(" · ");
+
+      html += '<li class="' + cls + '">'
+            + '<div class="time">' + timeHtml + "</div>"
+            + '<div class="mid"><div class="dest"' + (d.canceled ? ' style="text-decoration:line-through"' : "")
+            + ">" + d.to_name + '</div><div class="meta">' + meta + "</div></div>"
+            + '<div class="right"><span class="rel ' + (r.soon ? "soon" : "") + '">' + r.txt + "</span>"
+            + badge + "</div></li>";
+    });
+    html += "</ul></section>";
+  }
+  board.innerHTML = html || '<div class="empty">Inga tåg de närmaste timmarna.</div>';
+}
+
+async function load() {
+  try {
+    const res = await fetch(DATA_URL, { cache: "no-store" });
+    if (!res.ok) throw new Error(res.status);
+    data = await res.json();
+    render();
+  } catch (e) {
+    if (!data) document.getElementById("board").innerHTML =
+      '<div class="error">Kunde inte hämta avgångar.</div>';
+  }
+}
+
+load();
+setInterval(render, 20 * 1000);          // relativa tider live
+setInterval(load, 5 * 60 * 1000);        // ny data när ett nytt bygge körts
+document.addEventListener("visibilitychange", () => { if (!document.hidden) load(); });
+</script>
+</body>
+</html>

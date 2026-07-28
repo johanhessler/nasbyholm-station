@@ -24,6 +24,10 @@ __pycache__/
 data/
 lake/
 
+# Avgångstavlans data byggs av fetch_board.py och publiceras på data-grenen
+# (board.yml, git add -f) — ska aldrig committas på main.
+departures.json
+
 # --- dlt runtime ---
 .dlt/pipelines/
 ~/.dlt/
